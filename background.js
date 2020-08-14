@@ -12,16 +12,20 @@ const prefs = {
 };
 
 const cors = {};
-cors.onHeadersReceived = ({responseHeaders}) => {
+cors.onHeadersReceived = ({initiator, originUrl, responseHeaders}) => {
   if (prefs['overwrite-origin'] === true) {
     const o = responseHeaders.find(({name}) => name.toLowerCase() === 'access-control-allow-origin');
+    let origin = '*';
+    if (prefs['allow-credentials'] === true) {
+      origin = initiator || (originUrl && (new URL(originUrl)).origin) || '*';
+    }
     if (o) {
-      o.value = '*';
+      o.value = origin;
     }
     else {
       responseHeaders.push({
         'name': 'Access-Control-Allow-Origin',
-        'value': '*'
+        'value': origin
       });
     }
   }
@@ -156,11 +160,41 @@ chrome.storage.local.get(prefs, ps => {
   Object.assign(prefs, ps);
   /* context menu */
   chrome.contextMenus.create({
-    title: 'Overwrite access-control-allow-origin',
+    title: 'Test CORS',
+    id: 'test-cors',
+    contexts: ['browser_action']
+  });
+
+  chrome.contextMenus.create({
+    title: 'Overwrite Access-Control-Allow-Origin',
     type: 'checkbox',
     id: 'overwrite-origin',
     contexts: ['browser_action'],
     checked: prefs['overwrite-origin']
+  });
+
+  chrome.contextMenus.create({
+    title: 'Enable Access-Control-Allow-Credentials',
+    type: 'checkbox',
+    id: 'allow-credentials',
+    contexts: ['browser_action'],
+    checked: prefs['allow-credentials']
+  });
+
+  chrome.contextMenus.create({
+    title: 'Enable Access-Control-[Allow/Expose]-Headers',
+    type: 'checkbox',
+    id: 'allow-headers',
+    contexts: ['browser_action'],
+    checked: prefs['allow-headers']
+  });
+
+  chrome.contextMenus.create({
+    title: 'Remove X-Frame-Options',
+    type: 'checkbox',
+    id: 'remove-x-frame',
+    contexts: ['browser_action'],
+    checked: prefs['remove-x-frame']
   });
 
   const menu = chrome.contextMenus.create({
@@ -199,36 +233,6 @@ chrome.storage.local.get(prefs, ps => {
     contexts: ['browser_action'],
     checked: prefs.methods.indexOf('PATCH') !== -1,
     parentId: menu
-  });
-
-  chrome.contextMenus.create({
-    title: 'Remove X-Frame-Options',
-    type: 'checkbox',
-    id: 'remove-x-frame',
-    contexts: ['browser_action'],
-    checked: prefs['remove-x-frame']
-  });
-
-  chrome.contextMenus.create({
-    title: 'Enable Access-Control-Allow-Credentials',
-    type: 'checkbox',
-    id: 'allow-credentials',
-    contexts: ['browser_action'],
-    checked: prefs['allow-credentials']
-  });
-
-  chrome.contextMenus.create({
-    title: 'Enable Access-Control-[Allow/Expose]-Headers',
-    type: 'checkbox',
-    id: 'allow-headers',
-    contexts: ['browser_action'],
-    checked: prefs['allow-headers']
-  });
-
-  chrome.contextMenus.create({
-    title: 'Test CORS',
-    id: 'test-cors',
-    contexts: ['browser_action']
   });
 
   cors.onCommand();
